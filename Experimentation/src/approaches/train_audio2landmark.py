@@ -22,21 +22,27 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Audio2landmark_model():
 
-    def __init__(self, opt_parser, jpg_shape=None):
+    def __init__(self, a2l_G_name,a2l_C_name,amp_pos,amp_lip_x,amp_lip_y, reuse_train_emb_list,output_folder,jpg_shape=None):
         '''
         Init model with opt_parser
         '''
         print('Run on device:', device)
 
         # Step 1 : load opt_parser
-        self.opt_parser = opt_parser
+        self.a2l_G_name = a2l_G_name
+        self.a2l_C_name = a2l_C_name
+        self.amp_pos = amp_pos
+        self.amp_lip_x = amp_lip_x
+        self.amp_lip_y = amp_lip_y
+        self.reuse_train_emb_list = reuse_train_emb_list
+        self.output_folder = output_folder
         self.std_face_id = np.loadtxt('src/dataset/utils/STD_FACE_LANDMARKS.txt')
         if(jpg_shape is not None):
             self.std_face_id = jpg_shape
         self.std_face_id = self.std_face_id.reshape(1, 204)
         self.std_face_id = torch.tensor(self.std_face_id, requires_grad=False, dtype=torch.float).to(device)
 
-        self.eval_data = Audio2landmark_Dataset(dump_dir='examples/dump',
+        self.eval_data = Audio2landmark_Dataset(dump_dir='weights/dump',
                                                 dump_name='random',
                                                 status='val',
                                                num_window_frames=18,
@@ -55,12 +61,12 @@ class Audio2landmark_model():
         print('G: Running on {}, total num params = {:.2f}M'.format(device, get_n_params(self.G)/1.0e6))
 
         model_dict = self.G.state_dict()
-        ckpt = torch.load(opt_parser.load_a2l_G_name)
+        ckpt = torch.load(self.a2l_G_name)
         pretrained_dict = {k: v for k, v in ckpt['G'].items() if k.split('.')[0] not in ['comb_mlp']}
         model_dict.update(pretrained_dict)
         self.G.load_state_dict(model_dict)
 
-        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(opt_parser.load_a2l_G_name))
+        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.a2l_G_name))
         self.G.to(device)
 
         ''' baseline model '''
@@ -68,23 +74,23 @@ class Audio2landmark_model():
                                       in_size=80, use_prior_net=True,
                                       bidirectional=False, drop_out=0.5)
 
-        ckpt = torch.load(opt_parser.load_a2l_C_name)
+        ckpt = torch.load(self.a2l_C_name)
         self.C.load_state_dict(ckpt['model_g_face_id'])
         # self.C.load_state_dict(ckpt['C'])
-        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(opt_parser.load_a2l_C_name))
+        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.a2l_C_name))
         self.C.to(device)
 
         self.t_shape_idx = (27, 28, 29, 30, 33, 36, 39, 42, 45)
         self.anchor_t_shape = np.loadtxt('src/dataset/utils/STD_FACE_LANDMARKS.txt')
         self.anchor_t_shape = self.anchor_t_shape[self.t_shape_idx, :]
 
-        with open(os.path.join('examples', 'dump', 'emb.pickle'), 'rb') as fp:
+        with open(os.path.join('weights', 'dump', 'emb.pickle'), 'rb') as fp:
             self.test_embs = pickle.load(fp)
 
-        print('====================================')
-        for key in self.test_embs.keys():
-            print(key)
-        print('====================================')
+        # print('====================================')
+        # for key in self.test_embs.keys():
+        #     print(key)
+        # print('====================================')
 
     def __train_face_and_pos__(self, fls, aus, embs, face_id, smooth_win=31, close_mouth_ratio=.99):
 
@@ -116,7 +122,7 @@ class Audio2landmark_model():
         fl_dis_pred = fl_dis_pred.reshape(-1, 204)
         ''' ============================================================= '''
 
-        fl_dis_pred = torch.tensor(fl_dis_pred).to(device) * self.opt_parser.amp_pos
+        fl_dis_pred = torch.tensor(fl_dis_pred).to(device) * self.amp_pos
 
         residual_face_id = baseline_face_id
 
@@ -131,8 +137,8 @@ class Audio2landmark_model():
         mean_face_id = torch.mean(baseline_pred_fls.detach(), dim=0, keepdim=True)
         residual_face_id -= mean_face_id.view(1, 204) * 1.
         baseline_pred_fls, _ = self.C(aus, residual_face_id)
-        baseline_pred_fls[:, 48 * 3::3] *= self.opt_parser.amp_lip_x  # mouth x
-        baseline_pred_fls[:, 48 * 3 + 1::3] *= self.opt_parser.amp_lip_y  # mouth y
+        baseline_pred_fls[:, 48 * 3::3] *= self.amp_lip_x  # mouth x
+        baseline_pred_fls[:, 48 * 3 + 1::3] *= self.amp_lip_y  # mouth y
         return baseline_pred_fls
 
     def __calib_baseline_pred_fls__(self, baseline_pred_fls, ratio=0.5):
@@ -143,8 +149,8 @@ class Audio2landmark_model():
             m = np.mean(np_fl_dis_pred[min_k_idx[:K], calib_i])
             np_fl_dis_pred[:, calib_i] = np_fl_dis_pred[:, calib_i] - m
         baseline_pred_fls = torch.tensor(np_fl_dis_pred, requires_grad=False).to(device)
-        baseline_pred_fls[:, 48 * 3::3] *= self.opt_parser.amp_lip_x  # mouth x
-        baseline_pred_fls[:, 48 * 3 + 1::3] *= self.opt_parser.amp_lip_y  # mouth y
+        baseline_pred_fls[:, 48 * 3::3] *= self.amp_lip_x  # mouth x
+        baseline_pred_fls[:, 48 * 3 + 1::3] *= self.amp_lip_y  # mouth y
         return baseline_pred_fls
 
     def __train_pass__(self, au_emb=None, centerize_face=False, no_y_rotation=False, vis_fls=False):
@@ -163,7 +169,7 @@ class Audio2landmark_model():
             # Step 2.1: load batch data from dataloader (in segments)
             inputs_fl, inputs_au, inputs_emb = batch
 
-            keys = self.opt_parser.reuse_train_emb_list
+            keys = self.reuse_train_emb_list
             if(len(keys) == 0):
                 keys = ['audio_embed']
             for key in keys: # ['45hn7-LXDX8']: #['sxCbrYjBsGA']:#
@@ -241,13 +247,13 @@ class Audio2landmark_model():
                     fake_fls_np = fake_fls_np.reshape((-1, 68 * 3))
 
                 filename = 'pred_fls_{}_{}.txt'.format(video_name.split('\\')[-1].split('/')[-1], key)
-                np.savetxt(os.path.join(self.opt_parser.output_folder, filename), fake_fls_np, fmt='%.6f')
+                np.savetxt(os.path.join(self.output_folder, filename), fake_fls_np, fmt='%.6f')
 
                 # ''' Visualize result in landmarks '''
                 if(vis_fls):
                     from util.vis import Vis
                     Vis(fls=fake_fls_np, filename=video_name.split('\\')[-1].split('/')[-1], fps=62.5,
-                        audio_filenam=os.path.join('examples', video_name.split('\\')[-1].split('/')[-1]+'.wav'))
+                        audio_filenam=os.path.join('audio', video_name.split('\\')[-1].split('/')[-1]+'.wav'))
 
 
     def __close_face_lip__(self, fl):

@@ -157,8 +157,10 @@ else:
 ''' STEP 5: de-normalize the output to the original image scale '''
 fls = glob.glob1('examples', 'pred_fls_*.txt')
 fls.sort()
+print(fls)
 
 for i in range(0,len(fls)):
+    print('into the thingy')
     fl = np.loadtxt(os.path.join('examples', fls[i])).reshape((-1, 68,3))
     fl[:, :, 0:2] = -fl[:, :, 0:2]
     fl[:, :, 0:2] = fl[:, :, 0:2] / scale - shift
@@ -177,4 +179,4 @@ for i in range(0,len(fls)):
     with torch.no_grad():
         model.single_test(jpg=img, fls=fl, filename=fls[i], prefix=opt_parser.jpg.split('.')[0])
         print('finish image2image gen')
-    os.remove(os.path.join('examples', fls[i]))
+    # os.remove(os.path.join('examples', fls[i]))
