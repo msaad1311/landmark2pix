@@ -162,7 +162,6 @@ class Audio2landmark_model():
 
             # Step 2.1: load batch data from dataloader (in segments)
             inputs_fl, inputs_au, inputs_emb = batch
-
             keys = self.opt_parser.reuse_train_emb_list
             if(len(keys) == 0):
                 keys = ['audio_embed']
@@ -197,6 +196,9 @@ class Audio2landmark_model():
                                                            input_face_id)
 
                     fl_dis_pred_pos = (fl_dis_pred_pos + input_face_id).data.cpu().numpy()
+                    print('=========================================')
+                    print('heyyyyyy',fl_dis_pred_pos)
+                    print('=========================================')
                     ''' solve inverse lip '''
                     fl_dis_pred_pos = self.__solve_inverse_lip2__(fl_dis_pred_pos)
                     fls_pred_pos_list += [fl_dis_pred_pos]

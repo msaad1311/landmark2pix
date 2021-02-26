@@ -63,7 +63,7 @@ class Image_translation_block():
         st = time.time()
         self.G.eval()
 
-        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256 * 3, 256))
+        writer = cv2.VideoWriter('out.mp4', cv2.VideoWriter_fourcc(*'mjpg'), 62.5, (256,256))
 
         for i, frame in enumerate(fls):
 
@@ -92,17 +92,13 @@ class Image_translation_block():
                 g_out_grey =np.mean(g_out, axis=3, keepdims=True)
                 g_out[:, :, :, 0:1] = g_out[:, :, :, 1:2] = g_out[:, :, :, 2:3] = g_out_grey
 
-
+            print(g_out.shape,frame.shape)
             for i in range(g_out.shape[0]):
-                frame = np.concatenate((ref_in[i], g_out[i], fls_in[i]), axis=1)* 255.0 #g_out[i] 
-                writer.write(frame.astype(np.uint8))
+                x = g_out[i]* 255.0 #g_out[i] np.concatenate((g_out[i], g_out[i], g_out[i]), axis=1)
+                writer.write(x.astype(np.uint8))
 
         writer.release()
         print('Time - only video:', time.time() - st)
-        print(filename)
-        print(filename[9:-16])
-        print(filename[:-4])
-        print(prefix)
         if(filename is None):
             filename = 'v'
         os.system('ffmpeg -loglevel error -y -i out.mp4 -i {} -pix_fmt yuv420p -strict -2 output/{}_{}.mp4'.format(

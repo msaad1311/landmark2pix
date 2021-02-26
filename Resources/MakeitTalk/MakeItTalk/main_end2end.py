@@ -155,29 +155,29 @@ else:
     model.test(au_emb=None)
 
 
-''' STEP 5: de-normalize the output to the original image scale '''
-fls = glob.glob1('examples', 'pred_fls_*.txt')
-fls.sort()
-print(fls)
+# ''' STEP 5: de-normalize the output to the original image scale '''
+# fls = glob.glob1('examples', 'pred_fls_*.txt')
+# fls.sort()
+# print(fls)
 
-for i in range(0,len(fls)):
-    print('into the thingy')
-    fl = np.loadtxt(os.path.join('examples', fls[i])).reshape((-1, 68,3))
-    fl[:, :, 0:2] = -fl[:, :, 0:2]
-    fl[:, :, 0:2] = fl[:, :, 0:2] / scale - shift
+# for i in range(0,len(fls)):
+#     print('into the thingy')
+#     fl = np.loadtxt(os.path.join('examples', fls[i])).reshape((-1, 68,3))
+#     fl[:, :, 0:2] = -fl[:, :, 0:2]
+#     fl[:, :, 0:2] = fl[:, :, 0:2] / scale - shift
 
-    if (ADD_NAIVE_EYE):
-        fl = util.add_naive_eye(fl)
+#     if (ADD_NAIVE_EYE):
+#         fl = util.add_naive_eye(fl)
 
-    # additional smooth
-    fl = fl.reshape((-1, 204))
-    fl[:, :48 * 3] = savgol_filter(fl[:, :48 * 3], 15, 3, axis=0)
-    fl[:, 48*3:] = savgol_filter(fl[:, 48*3:], 5, 3, axis=0)
-    fl = fl.reshape((-1, 68, 3))
+#     # additional smooth
+#     fl = fl.reshape((-1, 204))
+#     fl[:, :48 * 3] = savgol_filter(fl[:, :48 * 3], 15, 3, axis=0)
+#     fl[:, 48*3:] = savgol_filter(fl[:, 48*3:], 5, 3, axis=0)
+#     fl = fl.reshape((-1, 68, 3))
 
-    ''' STEP 6: Imag2image translation '''
-    model = Image_translation_block(opt_parser, single_test=True)
-    with torch.no_grad():
-        model.single_test(jpg=img, fls=fl, filename=fls[i], prefix=opt_parser.jpg.split('.')[0])
-        print('finish image2image gen')
-    # os.remove(os.path.join('examples', fls[i]))
+#     ''' STEP 6: Imag2image translation '''
+#     model = Image_translation_block(opt_parser, single_test=True)
+#     with torch.no_grad():
+#         model.single_test(jpg=img, fls=fl, filename=fls[i], prefix=opt_parser.jpg.split('.')[0])
+#         print('finish image2image gen')
+#     # os.remove(os.path.join('examples', fls[i]))

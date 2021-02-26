@@ -22,15 +22,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Audio2landmark_model():
 
-    def __init__(self, a2l_G_name,a2l_C_name,amp_pos,amp_lip_x,amp_lip_y, reuse_train_emb_list,output_folder,jpg_shape=None):
+    def __init__(self, load_a2l_G_name,load_a2l_C_name,amp_pos,amp_lip_x,amp_lip_y,reuse_train_emb_list,output_folder, jpg_shape=None):
         '''
         Init model with opt_parser
         '''
         print('Run on device:', device)
 
         # Step 1 : load opt_parser
-        self.a2l_G_name = a2l_G_name
-        self.a2l_C_name = a2l_C_name
+        self.load_a2l_G_name = load_a2l_G_name
+        self.load_a2l_C_name = load_a2l_C_name
         self.amp_pos = amp_pos
         self.amp_lip_x = amp_lip_x
         self.amp_lip_y = amp_lip_y
@@ -61,12 +61,12 @@ class Audio2landmark_model():
         print('G: Running on {}, total num params = {:.2f}M'.format(device, get_n_params(self.G)/1.0e6))
 
         model_dict = self.G.state_dict()
-        ckpt = torch.load(self.a2l_G_name)
+        ckpt = torch.load(self.load_a2l_G_name)
         pretrained_dict = {k: v for k, v in ckpt['G'].items() if k.split('.')[0] not in ['comb_mlp']}
         model_dict.update(pretrained_dict)
         self.G.load_state_dict(model_dict)
 
-        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.a2l_G_name))
+        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.load_a2l_G_name))
         self.G.to(device)
 
         ''' baseline model '''
@@ -74,10 +74,10 @@ class Audio2landmark_model():
                                       in_size=80, use_prior_net=True,
                                       bidirectional=False, drop_out=0.5)
 
-        ckpt = torch.load(self.a2l_C_name)
+        ckpt = torch.load(self.load_a2l_C_name)
         self.C.load_state_dict(ckpt['model_g_face_id'])
         # self.C.load_state_dict(ckpt['C'])
-        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.a2l_C_name))
+        print('======== LOAD PRETRAINED FACE ID MODEL {} ========='.format(self.load_a2l_C_name))
         self.C.to(device)
 
         self.t_shape_idx = (27, 28, 29, 30, 33, 36, 39, 42, 45)
@@ -168,7 +168,6 @@ class Audio2landmark_model():
 
             # Step 2.1: load batch data from dataloader (in segments)
             inputs_fl, inputs_au, inputs_emb = batch
-
             keys = self.reuse_train_emb_list
             if(len(keys) == 0):
                 keys = ['audio_embed']
@@ -203,6 +202,9 @@ class Audio2landmark_model():
                                                            input_face_id)
 
                     fl_dis_pred_pos = (fl_dis_pred_pos + input_face_id).data.cpu().numpy()
+                    # print('=========================================')
+                    # print('heyyyyyy',fl_dis_pred_pos)
+                    # print('=========================================')
                     ''' solve inverse lip '''
                     fl_dis_pred_pos = self.__solve_inverse_lip2__(fl_dis_pred_pos)
                     fls_pred_pos_list += [fl_dis_pred_pos]
@@ -245,7 +247,7 @@ class Audio2landmark_model():
                         fake_fls_np[i] = np.dot(T2, landmarks.T).T
                         # print(frame_t_shape[i, 0])
                     fake_fls_np = fake_fls_np.reshape((-1, 68 * 3))
-
+                print('saving file')
                 filename = 'pred_fls_{}_{}.txt'.format(video_name.split('\\')[-1].split('/')[-1], key)
                 np.savetxt(os.path.join(self.output_folder, filename), fake_fls_np, fmt='%.6f')
 
