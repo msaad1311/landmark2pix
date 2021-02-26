@@ -38,7 +38,7 @@ def imgSelection(imgPath,faceAlignment):
     shapes[[37,38,43,44], 1] -=2
     shapes[[40,41,46,47], 1] +=2
     
-    return shapes
+    return shapes,image
         
 
 def audio(audioPath,modelPath):
@@ -104,48 +104,53 @@ if __name__ =='__main__':
     faceAlignment = face_alignment.FaceAlignment(face_alignment.LandmarksType._3D, device='cuda', flip_input=True)
     a2l_G_name = r'weights/ckpt/ckpt_speaker_branch.pth'
     a2l_C_name = r'weights/ckpt/ckpt_content_branch.pth'
+    load_G_name = r'weights/ckpt/ckpt_116_i2i_comb.pth'
+    imgPath = r'images\taylor.jpg'
     amp_pos = 0.5
     amp_lip_x = 2.0
     amp_lip_y = 2.0
     reuse_train_emb_list = []
     output_folder = r'output'
     eyesAddition = True
+    add_audio_in = False
     
-    shapes = imgSelection(r'images\taylor.jpg',faceAlignment)
+    
+    shapes,img = imgSelection(imgPath,faceAlignment)
     data,au_emb = audio(r'audio\tmp1.wav',r'weights/ckpt/ckpt_autovc.pth')
     landmarkPlacer(data)
     
     model = Audio2landmark_model(a2l_G_name,a2l_C_name,amp_pos,amp_lip_x,amp_lip_y, 
                                  reuse_train_emb_list,output_folder, jpg_shape=shapes)
     
+    print(au_emb)
     if(len(reuse_train_emb_list) == 0):
         model.test(au_emb=au_emb)
     else:
         model.test(au_emb=None)
         
-    fls = glob.glob1('output', 'pred_fls_*.txt')
-    fls.sort()
+    # fls = glob.glob1('output', 'pred_fls_*.txt')
+    # fls.sort()
 
-    for i in range(0,len(fls)):
-        fl = np.loadtxt(os.path.join('output', fls[i])).reshape((-1, 68,3))
-        fl[:, :, 0:2] = -fl[:, :, 0:2]
-        fl[:, :, 0:2] = fl[:, :, 0:2] 
+    # for i in range(0,len(fls)):
+    #     fl = np.loadtxt(os.path.join('output', fls[i])).reshape((-1, 68,3))
+    #     fl[:, :, 0:2] = -fl[:, :, 0:2]
+    #     fl[:, :, 0:2] = fl[:, :, 0:2] 
 
-        if (eyesAddition):
-            fl = util.add_naive_eye(fl)
+    #     if (eyesAddition):
+    #         fl = util.add_naive_eye(fl)
 
-        # additional smooth
-        fl = fl.reshape((-1, 204))
-        fl[:, :48 * 3] = savgol_filter(fl[:, :48 * 3], 15, 3, axis=0)
-        fl[:, 48*3:] = savgol_filter(fl[:, 48*3:], 5, 3, axis=0)
-        fl = fl.reshape((-1, 68, 3))
+    #     # additional smooth
+    #     fl = fl.reshape((-1, 204))
+    #     fl[:, :48 * 3] = savgol_filter(fl[:, :48 * 3], 15, 3, axis=0)
+    #     fl[:, 48*3:] = savgol_filter(fl[:, 48*3:], 5, 3, axis=0)
+    #     fl = fl.reshape((-1, 68, 3))
 
-        ''' STEP 6: Imag2image translation '''
-        model = Image_translation_block(opt_parser, single_test=True)
-        with torch.no_grad():
-            model.single_test(jpg=img, fls=fl, filename=fls[i], prefix=opt_parser.jpg.split('.')[0])
-            print('finish image2image gen')
-        # os.remove(os.path.join('examples', fls[i]))
+    #     ''' STEP 6: Imag2image translation '''
+    #     model = Image_translation_block(add_audio_in,load_G_name,single_test=True)
+    #     with torch.no_grad():
+    #         model.single_test(jpg=img, fls=fl, filename=fls[i], prefix=imgPath.split('.')[0].split('\\')[1])
+    #         print('finish image2image gen')
+    #     # os.remove(os.path.join('examples', fls[i]))
     
     
         

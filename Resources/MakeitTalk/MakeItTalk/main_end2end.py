@@ -147,6 +147,7 @@ with open(os.path.join('examples', 'dump', 'random_val_gaze.pickle'), 'wb') as f
 
 
 ''' STEP 4: RUN audio->landmark network'''
+print(au_emb)
 model = Audio2landmark_model(opt_parser, jpg_shape=shape_3d)
 if(len(opt_parser.reuse_train_emb_list) == 0):
     model.test(au_emb=au_emb)
