@@ -122,7 +122,7 @@ if __name__ =='__main__':
     load_a2l_G_name = r'weights/ckpt/ckpt_speaker_branch.pth'
     load_a2l_C_name = r'weights/ckpt/ckpt_content_branch.pth'
     load_G_name = r'weights/ckpt/ckpt_116_i2i_comb.pth'
-    imgPath = r'images\taylor.jpg'
+    imgPath = r'images\captain.jpg'
     amp_pos = .5
     amp_lip_x = 2.
     amp_lip_y = 2.
@@ -130,6 +130,8 @@ if __name__ =='__main__':
     output_folder = r'output'
     eyesAddition = True
     add_audio_in = False
+    
+    
     
     
     shapes,img = imgSelection(imgPath,faceAlignment)
