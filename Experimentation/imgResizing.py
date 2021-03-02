@@ -1,5 +1,5 @@
 import cv2
-import os
+import matplotlib.pylab as plt
 
 def imageResizing(im):
     classifier = cv2.CascadeClassifier(cv2.data.haarcascades+"haarcascade_frontalface_default.xml")
@@ -14,3 +14,9 @@ def imageResizing(im):
             sub_face = cv2.resize(sub_face,(256,256))
             
     return sub_face
+
+if __name__=='__main__':
+        image = cv2.imread(r'images\grandDad.jpg')
+        foo = imageResizing(image)
+        plt.imshow(foo)
+        plt.show()

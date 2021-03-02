@@ -92,7 +92,7 @@ class Image_translation_block():
                 g_out_grey =np.mean(g_out, axis=3, keepdims=True)
                 g_out[:, :, :, 0:1] = g_out[:, :, :, 1:2] = g_out[:, :, :, 2:3] = g_out_grey
 
-            print(g_out.shape,frame.shape)
+            # print(g_out.shape,frame.shape)
             for i in range(g_out.shape[0]):
                 x = g_out[i]* 255.0 #g_out[i] np.concatenate((g_out[i], g_out[i], g_out[i]), axis=1)
                 writer.write(x.astype(np.uint8))

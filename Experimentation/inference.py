@@ -7,6 +7,8 @@ import cv2
 import pickle
 import shutil
 from scipy.signal import savgol_filter
+import sounddevice as sd
+from scipy.io.wavfile import write
 
 import torch
 import face_alignment
@@ -17,8 +19,6 @@ from src.approaches.train_audio2landmark import Audio2landmark_model
 from src.approaches.train_image_translation import Image_translation_block
 from src.autovc.AutoVC_mel_Convertor_retrain_version import AutoVC_mel_Convertor
 from thirdparty.resemblyer_util.speaker_emb import get_spk_emb
-
-
 
 def imgSelection(imgPath,faceAlignment):
     image = cv2.imread(imgPath)
@@ -72,31 +72,14 @@ def landmarkPlacer(au_data):
         rot_quat.append(np.zeros(shape=(au_length, 4)))
         anchor_t_shape.append(np.zeros(shape=(au_length, 68 * 3)))
         
-    if(os.path.exists(os.path.join('weights', 'dump', 'random_val_fl.pickle'))):
-        os.remove(os.path.join('weights', 'dump', 'random_val_fl.pickle'))
-    if(os.path.exists(os.path.join('weights', 'dump', 'random_val_fl_interp.pickle'))):
-        os.remove(os.path.join('weights', 'dump', 'random_val_fl_interp.pickle'))
-    if(os.path.exists(os.path.join('weights', 'dump', 'random_val_au.pickle'))):
-        os.remove(os.path.join('weights', 'dump', 'random_val_au.pickle'))
-    if (os.path.exists(os.path.join('weights', 'dump', 'random_val_gaze.pickle'))):
-        os.remove(os.path.join('weights', 'dump', 'random_val_gaze.pickle'))
-
-    with open(os.path.join('weights', 'dump', 'random_val_fl.pickle'), 'wb') as fp:
-        pickle.dump(fl_data, fp)
-    with open(os.path.join('weights', 'dump', 'random_val_au.pickle'), 'wb') as fp:
-        pickle.dump(au_data, fp)
-    with open(os.path.join('weights', 'dump', 'random_val_gaze.pickle'), 'wb') as fp:
-        gaze = {'rot_trans':rot_tran, 'rot_quat':rot_quat, 'anchor_t_shape':anchor_t_shape}
-        pickle.dump(gaze, fp)
-
-    # cleanStore('weights/dump/random_val_fl.pickle',fl_data)
+    cleanStore('weights/dump/random_val_fl.pickle',fl_data)
     
-    # cleanStore('weights/dump/random_val_fl_interp.pickle',None)
+    cleanStore('weights/dump/random_val_fl_interp.pickle',None)
     
-    # cleanStore('weights/dump/random_val_au.pickle',au_data)
+    cleanStore('weights/dump/random_val_au.pickle',au_data)
     
-    # gaze = {'rot_trans':rot_tran, 'rot_quat':rot_quat, 'anchor_t_shape':anchor_t_shape}
-    # cleanStore('weights/dump/random_val_gaze.pickle',gaze)
+    gaze = {'rot_trans':rot_tran, 'rot_quat':rot_quat, 'anchor_t_shape':anchor_t_shape}
+    cleanStore('weights/dump/random_val_gaze.pickle',gaze)
 
         
 def cleanStore(path,dumper):
@@ -114,15 +97,23 @@ def cleanStore(path,dumper):
         print(f'The file {os.path.basename(path)} is saved')
     
     return
-        
 
-    
+def recording():
+    fs = 16000  # Sample rate
+    secs = int(input('Enter the number of seconds to record'))
+
+    myrecording = sd.rec(int(secs * fs), samplerate=fs, channels=2)
+    sd.wait()  # Wait until recording is finished
+    write(r'audio\tmp1.wav', fs, myrecording)  # Save as WAV file 
+    return 
+   
+
 if __name__ =='__main__':
     faceAlignment = face_alignment.FaceAlignment(face_alignment.LandmarksType._3D, device='cuda', flip_input=True)
     load_a2l_G_name = r'weights/ckpt/ckpt_speaker_branch.pth'
     load_a2l_C_name = r'weights/ckpt/ckpt_content_branch.pth'
     load_G_name = r'weights/ckpt/ckpt_116_i2i_comb.pth'
-    imgPath = r'images\captain.jpg'
+    imgPath = r'images\grandDad.jpg'
     amp_pos = .5
     amp_lip_x = 2.
     amp_lip_y = 2.
@@ -132,7 +123,7 @@ if __name__ =='__main__':
     add_audio_in = False
     
     
-    
+    recording()
     
     shapes,img = imgSelection(imgPath,faceAlignment)
     shapes, scale, shift = util.norm_input_face(shapes)
